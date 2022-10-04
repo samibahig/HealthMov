@@ -1,0 +1,179 @@
+import pandas as pd
+#pd.set_option("max_columns", None)
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import seaborn as sns
+import numpy as np
+# Acquisition des données et Affichage
+df = pd.read_csv("Downloads/diabetes_012_health_indicators_BRFSS2015 (6).csv", delimiter=",", decimal=",")
+print('VOICI LE CONTENU DU DATAFRAME df')
+
+from sklearn.ensemble import RandomForestClassifier
+df.describe()
+df.info()
+
+df1 = df['Diabetes_012']
+df2 = df.loc[:, ['HighBP', 'BMI', 'Smoker', 'PhysActivity', 'Sex', 'Age']]
+
+### Undersampling 
+# Shuffle the Dataset.
+shuffled_df = df.sample(frac=1,random_state=4)
+# Put all the label 1 class in a separate dataset.
+label1_df = shuffled_df.loc[df['Diabetes_012'] == 1]
+#Randomly select 4600 observations from the label 0 (majority class)
+label0_df = shuffled_df.loc[df['Diabetes_012'] == 0].sample(n=4600,random_state=42)
+#Randomly select 4600 observations from the label 0 (majority class)
+label2_df = shuffled_df.loc[df['Diabetes_012'] == 2].sample(n=4600,random_state=42)
+# Concatenate both dataframes again
+normalized_df = pd.concat([label1_df, label0_df, label2_df])
+#plot the dataset after the undersampling
+plt.figure(figsize=(8, 8))
+sns.countplot('Diabetes_012', data=normalized_df)
+plt.title('Balanced Classes')
+plt.show()
+
+numeric_cols = normalized_df.select_dtypes(include='number').columns
+liste = ["Diabetes_012", 'HighChol', 'CholCheck', 'Stroke', 'HeartDiseaseorAttack', 'Fruits', 'Veggies', 'HvyAlcoholConsump', 'AnyHealthcare', 'NoDocbcCost', 'GenHlth', 'MentHlth', 'PhysHlth', 'DiffWalk', 'Education', 'Income']
+numeric_cols = numeric_cols.drop(liste)
+
+df2 = normalized_df.loc[:, ['HighBP', 'BMI', 'Smoker', 'PhysActivity', 'Sex', 'Age']]
+fig, axs = plt.subplots(nrows=1, ncols=6, figsize=(16, 4))
+axs = axs.flatten()
+for i, num in enumerate(numeric_cols):
+    sns.boxplot(data=df2, x=num, ax=axs[i])
+plt.tight_layout()
+plt.show()
+
+fig, axs = plt.subplots(nrows=1, ncols=6, figsize=(16, 4))
+axs = axs.flatten()
+for i, num in enumerate(numeric_cols):
+    sns.histplot(data=df, kde=True, x=num, ax=axs[i])
+plt.tight_layout()
+plt.show()
+
+### Voici les différents datatypes de variable
+### Verification des données de la classe cible
+# Dimension du dataset
+print('La dimension du dataset est :', df2.shape)
+print('Le nombre de lignes du dataset est : ', df2.shape[0])
+print('le nombre de colonnes du dataset est: ', df2.shape[1])
+print('La repartition de la classe cible est :')
+normalized_df['Diabetes_012'].value_counts()
+
+### 0 for no diabetes, 1 for prediabetes, and 2 for diabetes
+df2.tail()
+
+### Nous allons faire une sélection de colonnes selon des critères cliniques
+### Nous avons donc 12 variables selectionnees par des criteres predictifs cliniques et 253680 observations.
+### Nous avons aussi maintenant 2 labels, la classe 1 et la classe 0
+### C'est un dataset non balancé, c'est a dire qu'il y a de grandes différences dans la distribution des classes. Cela veut dire que le dataset est biaisé vers une classe.
+### Si le dataset est biaisé vers une classe(modalité 0 veut dire pas de diabète ou seulement en grossesse, tous les algorithmes entrainés seront biaisés pour la même classe au détriment de la classe 1 pour prediabetes, et classe 2 pour diabetes.
+
+# Vérification des données manquantes
+### Il n'y a pas de données manquantes
+### Verification des données inconnues:
+
+df_verif = df2.replace('?', np.NaN)
+print('Nombre de lignes = %d' % (df_verif.shape[0]))
+print('Nombre de colonnes = %d' % (df_verif.shape[1]))
+print('Nombre de donnees manquantes par caracteristiques:')
+for col in df_verif.columns:
+    print('\t%s: %d' % (col, df_verif[col].isna().sum()))
+### Il n'y a pas de données inconnues
+
+### Commençons par une matrice de corrélation, pour voir les corrélations entre les variables
+corr=df2.corr()
+corr=corr.round(2)
+f,ax = plt.subplots(figsize=(10,8))
+sns.heatmap(corr)
+plt.show()
+### la matrice démontre de fortes corrélations (supérieur a 0.3) pour HighBP, HighChol et BMI 
+
+### Vérifions les distributions des variables et verifions si il y a des outliers avant de choisir la méthode de standardisation
+import matplotlib.pyplot as plt 
+import numpy as np
+np.random.seed(42)
+x = df2['HighBP']
+plt.hist(x, density=True, bins=20)
+plt.ylabel('HighBP')
+plt.xlabel('class')
+
+import matplotlib.pyplot as plt 
+import numpy as np
+np.random.seed(42)
+x = df2['HighBP']
+plt.hist(x, density=True, bins=20)
+plt.ylabel('HighBP')
+plt.xlabel('class')
+
+import matplotlib.pyplot as plt 
+import numpy as np
+np.random.seed(42)
+x = df2['BMI']
+plt.hist(x, density=True, bins=20)
+plt.ylabel('BMI')
+plt.xlabel('class')
+
+# affichage du boxplot
+fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(30, 20))
+feature_index = 0
+for ii in range(3):
+    for jj in range(2): 
+        ax = sns.boxplot(x=df['Diabetes_012'], y=df.columns.values[feature_index], data=df, ax=axes[ii, jj])
+        ax.set(title=df.columns.values[feature_index], xlabel='class', ylabel='value')
+        feature_index += 1
+plt.show()  
+
+### Puisque nous avons des outliers sur les boxplots, nous allons utilisé un Robust Scaler pour la standardisation
+from sklearn.preprocessing import RobustScaler
+sc =  RobustScaler()
+df_std = sc.fit_transform(df2)
+df_std2 = pd.DataFrame(df_std)
+df_std2.head()
+
+from sklearn.metrics import f1_score
+from sklearn.linear_model import LogisticRegression
+from sklearn import metrics
+x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+log_regression = LogisticRegression()
+log_regression.fit(x_train, y_train)
+y_pred = log_regression.predict(x_test)
+clf = f1_score(y_pred, y_test, average='micro')
+
+clf = LogisticRegression(random_state=0).fit(X, y)
+clf.coef_
+y = clf.predict_proba(X)
+y = clf.predict(X)
+
+### 3 Integration of the Diabetic Model
+### So that means for example, that for the first observation
+y.shape
+clf
+log_regression.coef_
+odds = np.exp(log_regression.coef_)
+lng = [0.52387985,  0.04653181,  0.10149936, -0.08324385,  0.13262632,
+         0.10267394]
+pd.DataFrame(odds, X.columns, columns=['coef']).sort_values(by='coef', ascending=False)
+recall_score(y_pred, y_test, average='micro')
+### Notre meilleur score pour ce dataset est le score de Regression logistique
+### GaussianNB
+from sklearn.naive_bayes import GaussianNB
+from sklearn.model_selection import train_test_split
+y = df['Diabetes_012']
+X = df.drop('Diabetes_012', axis = 1)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=0)
+from sklearn.naive_bayes import GaussianNB
+clf = GaussianNB()
+clf.fit(X_train, y_train)
+y_pred = clf.predict(X_test)
+from sklearn.metrics import f1_score
+f1_score(y_pred, y_test, average='micro')
+recall_score(y_pred, y_test, average='micro')
+
+
+
+
+
+
+
+
