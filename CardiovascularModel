@@ -1,0 +1,222 @@
+import pandas as pd
+#pd.set_option("max_columns", None)
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import seaborn as sns
+import numpy as np
+# Acquisition des données et Affichage
+df = pd.read_csv("Downloads/framingham.csv")
+
+### The data consists of 4133 patient records presenting with cardiovascular disease) and contains 16 features (4 demographic, 4 examination, and 3 social history):
+### Voici les différents datatypes de variable
+
+df2 = df.loc[:, ['male', 'age', 'currentSmoker', 'BMI', 'prevalentHyp']]  # 'diaBP'
+
+X = df2
+y = df['TenYearCHD']
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=104, test_size=0.05)
+
+# Vérification des données manquantes
+
+### Il n'y a pas de données manquantes
+
+### Verification des données inconnues:
+
+df_verif = df.replace('?', np.NaN)
+print('Nombre de lignes = %d' % (df_verif.shape[0]))
+print('Nombre de colonnes = %d' % (df_verif.shape[1]))
+print('Nombre de donnees manquantes par caracteristiques:')
+for col in df_verif.columns:
+    print('\t%s: %d' % (col, df_verif[col].isna().sum()))
+
+### Il n'y a pas de données inconnues
+### Vérification des données aberrantes
+### Sachant que toutes les variables sont quantitatives, il sera possible de faire une PCA
+
+### Commençons par une matrice de corrélation, pour voir les corrélations entre les variables
+import matplotlib.pyplot as mp
+import seaborn as sb
+corr=df.corr()
+corr=corr.round(2)
+mask = np.triu(np.ones_like(corr))
+f,ax = plt.subplots(figsize=(10,8))
+dataplot = sns.heatmap(corr, mask=mask, annot=True, cmap='inferno')
+mp.show()
+
+#print(df['Class'].value_counts())
+plt.figure(figsize = (8, 5))
+sns.countplot( x = df['TenYearCHD'])
+plt.xlabel('CHD', size = 12)
+plt.ylabel('Count', size = 12)
+plt.title('Distribution in target', size = 12)
+
+df.drop("TenYearCHD", axis=1).corrwith(df["TenYearCHD"]).plot(kind="bar", grid=True, figsize=(20, 8), color="blue")
+plt.title('Correlation avec CHD', fontsize=20)
+plt.xlabel('Features', fontsize=15)
+plt.ylabel('Corrélations', fontsize=15)
+plt.xticks(fontsize=15)
+plt.yticks(fontsize=15)
+
+### Feature selection 
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
+X = df.iloc[:, 0:14]
+y = df.iloc[:, -1]
+bestfeatures = SelectKBest(score_func=chi2, k=10)
+fit = bestfeatures.fit(X, y)
+dfscores = pd.DataFrame(fit.scores_)
+dfcolumns = pd.DataFrame(X.columns)
+featureScores = pd.concat([dfcolumns, dfscores], axis=1)
+featureScores.columns = ['Specs', 'Score']
+print(featureScores.nlargest(11, 'Score'))
+
+featureScores = featureScores.sort_values(by='Score', ascending=False)
+featureScores
+
+plt.figure(figsize=(20, 5))
+sns.barplot(x='Specs', y='Score', data=featureScores, palette = 'GnBu_d')
+plt.box(False)
+plt.title('Feature importance', fontsize=16)
+plt.xlabel('\ Features', fontsize=14)
+plt.ylabel('Importance \n', fontsize=14)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+plt.show()
+
+import random
+col = df.columns
+color = ['b', 'r']
+plt.figure(figsize= (22, 15))
+for i in range(len(col)-1):
+    c = random.choice(color)
+    plt.subplot(5, 5, i+1)
+    df[col[i]].plot(kind = 'box', color = c)
+
+plt.figure(figsize = (20, 10))
+for i in range (len(col)-1):
+    c = random.choice(color)
+    plt.subplot(5, 3, i+1)
+    sns.histplot(df[col[i]], color = c)
+    plt.xlabel(col[i], size = 12)
+    plt.ylabel('Count', size = 12)
+
+### Feature importance
+plt.figure(figsize=(20, 5))
+
+### Beside the heart rate and education, most of the variables have a good correlation with the TenYearCHD
+### Let's check if there is any outliers before choosing the standardidation method
+
+numeric_cols = df2.select_dtypes(include='number').columns
+numeric_cols
+fig, axs = plt.subplots(nrows=2, ncols=8, figsize=(16, 4))
+axs = axs.flatten()
+for i, num in enumerate(numeric_cols):
+    sns.boxplot(data=df2, x=num, ax=axs[i])
+plt.tight_layout()
+plt.show()
+fig, axs = plt.subplots(nrows=2, ncols=8, figsize=(16, 4))
+axs = axs.flatten()
+for i, num in enumerate(numeric_cols):
+    sns.histplot(data=df2, kde=True, x=num, ax=axs[i])
+plt.tight_layout()
+plt.show()
+
+### affichage du boxplot
+fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(20, 13))
+feature_index = 0
+for ii in range(3):
+    for jj in range(2): 
+        ax = sns.boxplot(x=df['TenYearCHD'], y=df2.columns.values[feature_index], data=df2, ax=axes[ii, jj])
+        ax.set(title=df2.columns.values[feature_index], xlabel='class', ylabel='value')
+        feature_index += 1
+plt.show()  
+
+### Separation train/test
+y1 = df['TenYearCHD']
+X = df2
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, Y_train, Y_test = train_test_split(X, y, test_size = 0.2, random_state = 44)
+X_train, X_test, Y_train, Y_test
+
+from sklearn.preprocessing import MinMaxScaler
+scaler = MinMaxScaler(feature_range=(0,1))
+df_scaled = pd.DataFrame(scaler.fit_transform(df2))
+y = df['TenYearCHD']
+X = df_scaled
+X_train, X_test, Y_train, Y_test
+
+### Hyperparameter tunning for Ridge
+from sklearn.model_selection import RandomizedSearchCV
+from pprint import pprint
+random_grid = {'alpha': [0.1, 0.3, 1.0, 3.0, 5.0, 8.0, 10.0, 12.0, 15.0, 20.0]}
+#alpha = (0.1, 1.0, 10.0)
+#random_grid = {'alpha': alpha}
+pprint(random_grid)
+
+### Boostraping 60 fois avec Paramètres obtenus en Cross-Validation 
+from sklearn import metrics
+AccuracyValues=[]
+n_times=60
+
+## Performing bootstrapping
+for i in range(n_times):
+    # Changing the seed value for each iteration
+    result = RidgeClassifier()
+    result.fit(X_train, Y_train)
+    prediction = result.predict(X_test)
+    Accuracy=metrics.accuracy_score(Y_test, prediction)
+    AccuracyValues.append((Accuracy))
+print('Final average accuracy', np.mean(AccuracyValues), ' std ', np.std(AccuracyValues))
+
+clf.get_params().keys()
+
+from sklearn.model_selection import train_test_split 
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.linear_model import RidgeCV
+X_train, X_test, Y_train, Y_test = train_test_split(X_resampled, y_resampled, test_size=0.2)
+result = RidgeClassifier()
+result = RandomizedSearchCV(estimator = result, param_distributions = random_grid, n_iter = 200, cv = 5, verbose=2, random_state=42, n_jobs = -1)
+# Fit the random search model
+result.fit(X_train, Y_train)
+
+
+### Test Données HealthMov 
+%run TestHealthMovDatas.ipynb
+df_Diabetes_HealthMov_Prediction[['GENDER', 'age', 'IS_SMOKER', 'BMI', 'VALUE']]
+df_Diabetes_HealthMov_Prediction.rename(columns = {'GENDER':'male', 'age':'age', 'IS_SMOKER':'currentsmoker', 'VALUE': 'heartRate'}, inplace = True)
+df_Diabetes_HealthMov_Prediction
+
+x_test_healthmov = df_Diabetes_HealthMov_Prediction[['male', 'age', 'currentsmoker', 'BMI', 'heartRate']]
+X, y
+
+### Cross Validation- GaussianNB
+from sklearn.model_selection import GridSearchCV
+nb_classifier = GaussianNB()
+params_NB = {'var_smoothing': np.logspace(0,-9, num=100)}
+gs_NB = GridSearchCV(estimator=nb_classifier, 
+                 param_grid=params_NB, 
+                 cv=10,   
+                 verbose=1, 
+                 scoring='accuracy') 
+gs_NB.fit(X_train, y_train)
+gs_NB.best_params_
+### Boostraping 60 fois avec Paramètres obtenus en Cross-Validation 
+from sklearn import metrics
+AccuracyValues=[]
+n_times=60
+## Performing bootstrapping
+for i in range(n_times):
+    # Changing the seed value for each iteration
+    result = GaussianNB(priors = None, var_smoothing = 5.336699231206313e-06)
+    result.fit(X_train, y_train)
+    prediction = result.predict(X_test)
+    Accuracy=metrics.accuracy_score(y_test, prediction)
+    AccuracyValues.append((Accuracy))
+print('Final average accuracy',np.mean(AccuracyValues), ' std ', np.std(AccuracyValues))
+
+
+
+
