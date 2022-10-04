@@ -1,0 +1,50 @@
+import pandas as pd
+df = pd.read_csv('AnuraDataset.csv (1).csv', sep=",")
+display(df['TYPE'].value_counts().head(30))
+df_Diabetes_HealthMov_Prediction = df[df['TYPE'].isin(['BP_CVD', 'BP_HEART_ATTACK'])]
+#drop multiple columns by name
+df_Diabetes_HealthMov_Prediction.drop(['NB_ANURA_SCAN', 'MEASURE_ID', 'EVENT_ID', 'DATA_TYPE', 'EVENT_DATE', 'EMPLOYEE_ID'], axis=1, inplace=True)
+df.drop(['NB_ANURA_SCAN', 'DIABETE_TYPE'], axis=1, inplace=True)
+df_Diabetes_HealthMov_Prediction
+data_cat = pd.get_dummies(df_Diabetes_HealthMov_Prediction, prefix=None, prefix_sep='_', dummy_na=False, columns=None, sparse=False, drop_first=False, dtype=None)
+data_cat
+from datetime import datetime
+from datetime import date
+now = datetime.now()
+#df1['age'] = now - df1['BIRTHDATE']
+#import pandas as pd
+df_Diabetes_HealthMov_Prediction["dob"] = pd.to_datetime(df_Diabetes_HealthMov_Prediction["BIRTHDATE"])
+df_Diabetes_HealthMov_Prediction["age"] = df_Diabetes_HealthMov_Prediction["dob"].apply(lambda x : (pd.datetime.now().year - x.year))
+from datetime import datetime
+from datetime import date
+now = datetime.now()
+#df1['age'] = now - df1['BIRTHDATE']
+#import pandas as pd
+df_Diabetes_HealthMov_Prediction["dob"] = pd.to_datetime(df_Diabetes_HealthMov_Prediction["BIRTHDATE"])
+df_Diabetes_HealthMov_Prediction["age"] = df_Diabetes_HealthMov_Prediction["dob"].apply(lambda x : (pd.datetime.now().year - x.year))
+df_Diabetes_HealthMov_Prediction['BMI'] = (df_Diabetes_HealthMov_Prediction['WEIGHT'])/((df_Diabetes_HealthMov_Prediction['HEIGHT']/100)*(df_Diabetes_HealthMov_Prediction['HEIGHT'])/100)
+
+df_Diabetes_HealthMov_Prediction.drop(['dob'], axis=1, inplace=True)
+df_Diabetes_HealthMov_Prediction.IS_SMOKER = df.IS_SMOKER.replace({False: 1, True: 0})
+df_Diabetes_HealthMov_Prediction.DIABETE_TYPE = df_Diabetes_HealthMov_Prediction.HAS_HYPERTENSION.replace({None: 0, True: 1})
+
+from sklearn.preprocessing import LabelEncoder
+LE = LabelEncoder()
+df_Diabetes_HealthMov_Prediction['GENDER'] = LE.fit_transform(df_Diabetes_HealthMov_Prediction['GENDER'])
+df_Diabetes_HealthMov_Prediction
+
+from sklearn.preprocessing import LabelEncoder
+LE = LabelEncoder()
+df['GENDER'] = LE.fit_transform(df['GENDER'])
+df
+import pandas as pd
+def checkAgeRange(age):
+    las_dig=age%5
+    range_age=str.format('{0}-{1}',age-las_dig,((age-las_dig)+5))
+    return range_age
+#d={'AGE':[19,13,45,65,23,12,28]}
+dataFrame= pd.DataFrame(data=df_Diabetes_HealthMov_Prediction['age'])
+dataFrame['AgeGroup']=df_Diabetes_HealthMov_Prediction['age'].apply(checkAgeRange)
+print(dataFrame)
+data_cat_2 = pd.get_dummies(df_Diabetes_HealthMov_Prediction, prefix=None, prefix_sep='_', dummy_na=False, sparse=False, drop_first=False, dtype=None)
+data_cat_2
